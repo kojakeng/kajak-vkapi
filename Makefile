@@ -17,7 +17,7 @@ options:
 
 ${OBJ}: vkapi_config.h config.mk 
 
-config.h:
+vkapi_config.h:
 	cp vkapi_config.def.h $@
 
 vkapi.a: $(OBJ)
