@@ -131,7 +131,7 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 		printf("%s", request_url);
 
 		curl_easy_setopt(curl, CURLOPT_URL, request_url);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, vkapi_check_response);
+/*		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, vkapi_check_response);*/
 
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK) {
