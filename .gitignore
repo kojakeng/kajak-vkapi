@@ -1,0 +1,6 @@
+*.a
+*.core
+*.o
+
+test_gen_request
+vkapi_config.h
