@@ -28,6 +28,6 @@ test_gen_request: test_gen_request.c vkapi.a
 	${CC} ${LDFLAGS} ${CFLAGS} ${CPPFLAGS} -o $@ test_gen_request.c vkapi.a
 
 clean:
-	rm -f chktables test_gen_request vkapi.a ${OBJ}
+	rm -f test_gen_request vkapi.a ${OBJ}
 
 .PHONY: all options clean
