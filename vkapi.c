@@ -7,10 +7,32 @@
 #include "vkapi_alloc.h"
 #include "vkapi_config.h"
 
+struct curl_memory {
+	char *mem;
+	int size;
+};
+
+static size_t
+writedata_curl(void *contents, size_t size,
+               size_t nmemb, void *stream)
+{
+	int realsize;
+	struct curl_memory *cmem; 
+	realsize = size * nmemb;
+	cmem = (struct curl_memory *) stream;
+	cmem->mem = vkapi_erealloc(cmem->mem,
+	                           cmem->size + realsize + 1);
+
+	memcpy(&(cmem->mem[cmem->size]), contents, realsize);
+	cmem->size += realsize;
+	cmem->mem[cmem->size] = 0;
+
+	return realsize;
+}
+
 
 void
-vkapi_check_response(void *ptr, size_t size,
-                     size_t nmemb, void *stream)
+vkapi_check_response(char *response)
 {	
 	/* iteration variables declaration */
 	int i;
@@ -29,7 +51,7 @@ vkapi_check_response(void *ptr, size_t size,
 	err_msg_txt    = NULL;
 	err_str        = NULL;
 
-	err_str = strstr(ptr, "error_code");
+	err_str = strstr(response, "error_code");
 	if (err_str) {
 		for (i = 0; err_str[i + 13] != ',' || 
 		            err_str[i + 13] != '}' ||
@@ -46,8 +68,7 @@ vkapi_check_response(void *ptr, size_t size,
 
 		fprintf(stderr, "error code: %s", err_code);
 
-		err_msg_block = strstr(ptr, "error_msg");
-
+		err_msg_block = strstr(response, "error_msg");
 		if (err_msg_block) {
 			err_msg_txt = strchr(err_msg, '\"');
 			
@@ -85,20 +106,21 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
                    struct vkapi_opts *opts)
 {
 	/* iteration variables declaration */
-	int i;
+	int                 i;
 
 	/* bool variables declaration */
-	char have_message_opt;
+	char                have_message_opt;
 
 	/* kajak-vkapi variables declaration */
-	char *request_url;
+	char               *request_url;
 
 	/* libCURL variables declaration */
-	CURL *curl;
-	CURLcode res;
+	CURL               *curl;
+	CURLcode            res;
+	struct curl_memory *vk_response;
 	
 	/* other variables declaration */
-	char *msg_txt;
+	char               *msg_txt;
 
 
 	if (opts->method_type != MESSAGES_SEND){
@@ -111,7 +133,7 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 	if (curl) {		
 		have_message_opt = 0;
 		for (i = 0; i < opts->num; ++i) {
-			if (strcmp(opts->lst[i]->opt_name,"message") == 0) {
+			if (strcmp(opts->lst[i]->opt_name, "message") == 0) {
 				have_message_opt = 1;
 				msg_txt = opts->lst[i]->opt_value;
 				opts->lst[i]->opt_value = curl_easy_escape(curl,
@@ -128,10 +150,13 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 
 		request_url = vkapi_gen_request(sess_obj, opts);
 
-		printf("%s", request_url);
+		vk_response = vkapi_emalloc(sizeof(struct curl_memory));
+		vk_response->mem = vkapi_emalloc(sizeof(char));
+		vk_response->size = 0;
 
 		curl_easy_setopt(curl, CURLOPT_URL, request_url);
-/*		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, vkapi_check_response);*/
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writedata_curl);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) vk_response);
 
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK) {
@@ -140,8 +165,10 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 			exit(EXIT_FAILURE);
 		}
 
+		vkapi_check_response(vk_response->mem);
+
 		for (i = 0; i < opts->num; ++i) {
-			if (strcmp(opts->lst[i]->opt_name,"message") == 0) {
+			if (strcmp(opts->lst[i]->opt_name, "message") == 0) {
 				msg_txt = opts->lst[i]->opt_value;
 				opts->lst[i]->opt_value = curl_easy_unescape(curl,
 				                                             msg_txt, 0, NULL);
@@ -155,6 +182,8 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 	}
 
 	free(request_url);
+	free(vk_response->mem);
+	free(vk_response);
 	curl_easy_cleanup(curl);
 
 	return 0;
