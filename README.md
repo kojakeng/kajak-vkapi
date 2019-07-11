@@ -2,7 +2,7 @@
 
 Library for VK API written in C [WIP].
 
-Implemented messages.send method only at this moment.
+Implemented `messages.send` method only at this moment.
 
 ## Dependencies
 * libCURL
