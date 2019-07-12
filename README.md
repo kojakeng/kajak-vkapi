@@ -12,3 +12,6 @@ Implemented `messages.send` method only at this moment.
 $ cd .../kajak-vkapi
 $ make
 ```
+
+## Usage of the library
+**[TODO]**
