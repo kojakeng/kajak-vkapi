@@ -1,7 +1,8 @@
 #include <curl/curl.h>
+#include <json-c/json.h>
 #include <stdio.h>       /* printf */
 #include <stdlib.h>      /* atoi exit  */
-#include <string.h>      /* strstr */
+#include <string.h>      /* strcpy strstr */
 
 #include "vkapi.h"
 #include "vkapi_alloc.h"
@@ -30,75 +31,41 @@ writedata_curl(void *contents, size_t size,
 	return realsize;
 }
 
-
-void
-vkapi_check_response(char *response)
+struct vkapi_error *
+vkapi_check_error(char *response)
 {	
 	/* iteration variables declaration */
 	int i;
 
 	/* normal variables declaration */
-	char *err_code;
-	char *err_msg;
-	char *err_msg_block;
-	char *err_msg_txt;
-	char *err_str;
+	struct json_object *jsn_response;
+	struct json_object *jsn_err;
+	struct json_object *jsn_err_num;
+	struct json_object *jsn_err_msg;
+	struct vkapi_error *err_obj;
 
 
-	err_code       = NULL;
-	err_msg        = NULL;
-	err_msg_block  = NULL;
-	err_msg_txt    = NULL;
-	err_str        = NULL;
+	jsn_response = json_tokener_parse(response);
 
-	err_str = strstr(response, "error_code");
-	if (err_str) {
-		for (i = 0; err_str[i + 13] != ',' || 
-		            err_str[i + 13] != '}' ||
-		            err_str[i + 13] != ' '   ; ++i) {
-			if (i == 0) {
-				err_code = vkapi_emalloc(sizeof(char) * 2);
-			} else {
-				err_code = vkapi_erealloc(err_code, 
-				                          sizeof(char) *
-				                          (strlen(err_code) + 2));
-			}
-			err_code[i] = err_str[i + 13];
-		}
+	jsn_err = json_object_object_get(jsn_response, "error");
+	
+	err_obj = vkapi_emalloc(sizeof(struct vkapi_error));
+	err_obj->err_msg = NULL;
 
-		fprintf(stderr, "error code: %s", err_code);
+	if (jsn_response != NULL) {
+		jsn_err_num = json_object_object_get(jsn_err, "error_code");
+		err_obj->err_num = json_object_get_int(jsn_err_num);
 
-		err_msg_block = strstr(response, "error_msg");
-		if (err_msg_block) {
-			err_msg_txt = strchr(err_msg, '\"');
-			
-			for (i = 0; err_msg_txt[i + 1] != '\"'; ++i) {
-				if (i == 0) {
-					err_msg = vkapi_emalloc(sizeof(char) * 2);
-				} else {
-					err_msg = vkapi_emalloc(sizeof(char) *
-																	(strlen(err_msg) + 2));
-				}
-
-				err_msg[i] = err_msg_txt[i + 1];
-			}
-
-			fprintf(stderr, "error msg:");
-			fprintf(stderr, "%s", err_msg);
-		}
-
-		free(err_msg);
-		free(err_msg_block);
-		free(err_msg_txt);
-		free(err_str);
-
-		if (atoi(err_code) > 0) {
-			free(err_code);
-			exit(EXIT_FAILURE);
-		}
-
-		free(err_code);
+		jsn_err_msg = json_object_object_get(jsn_err, "error_msg");
+		err_obj->err_msg = vkapi_emalloc(sizeof(char) *
+		                                 strlen(json_object_get_string(
+		                                                       jsn_err_msg)));
+		strcpy(err_obj->err_msg, json_object_get_string(jsn_err_msg));
+	} else {
+		err_obj->err_num = 0;
 	}
+
+	return err_obj;
 }
 
 int
@@ -165,7 +132,7 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 			exit(EXIT_FAILURE);
 		}
 
-		vkapi_check_response(vk_response->mem);
+		vkapi_check_error(vk_response->mem);
 
 		for (i = 0; i < opts->num; ++i) {
 			if (strcmp(opts->lst[i]->opt_name, "message") == 0) {

@@ -2,6 +2,11 @@
 
 #include "vkapi_utils.h"
 
-void   vkapi_check_response(char *response);
-int    vkapi_send_message(struct vkapi_sess_obj *,
-                          struct vkapi_opts *);
+struct vkapi_error {
+	int err_num;
+	char *err_msg;
+};
+
+struct vkapi_error  *vkapi_check_error(char *response);
+int                  vkapi_send_message(struct vkapi_sess_obj *,
+                                        struct vkapi_opts *);

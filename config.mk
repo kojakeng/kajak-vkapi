@@ -4,7 +4,7 @@ VERSION=0.0.1
 #CFLAGS = -Wall -pedantic -std=c99 -Wno-deprecated-declarations -Os \
 #				 `curl-config --cflags`
 #CPPFLAGS = -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_POSIX_C_SOURCE=2 -DVERSION=${VERSION}
-LDFLAGS = `curl-config --libs`
+LDFLAGS = `curl-config --libs` -ljson-c
 # debug flags
 CFLAGS = -Wall -g -pedantic -std=c99 -Wno-deprecated-declarations -O0 \
          `curl-config --cflags`

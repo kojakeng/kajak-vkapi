@@ -24,10 +24,13 @@ vkapi.a: $(OBJ)
 	${AR} rc $@ $?
 	${RANLIB} $@
 
+test_check_error: test_check_error.c vkapi.a
+	${CC} ${LDFLAGS} ${CFLAGS} ${CPPFLAGS} -o $@ test_check_error.c vkapi.a
+
 test_gen_request: test_gen_request.c vkapi.a
 	${CC} ${LDFLAGS} ${CFLAGS} ${CPPFLAGS} -o $@ test_gen_request.c vkapi.a
 
 clean:
-	rm -f test_gen_request vkapi.a ${OBJ}
+	rm -f test_check_error test_gen_request vkapi.a ${OBJ}
 
 .PHONY: all options clean
