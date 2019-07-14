@@ -6,6 +6,7 @@ Implemented `messages.send` method only at this moment.
 
 ## Dependencies
 * libCURL
+* json-c
 
 ## Building
 ```sh
