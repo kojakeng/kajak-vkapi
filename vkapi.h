@@ -8,5 +8,5 @@ struct vkapi_error {
 };
 
 struct vkapi_error  *vkapi_check_error(char *response);
-int                  vkapi_send_message(struct vkapi_sess_obj *,
+struct vkapi_error  *vkapi_send_message(struct vkapi_sess_obj *,
                                         struct vkapi_opts *);

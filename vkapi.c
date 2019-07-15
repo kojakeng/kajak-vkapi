@@ -68,7 +68,7 @@ vkapi_check_error(char *response)
 	return err_obj;
 }
 
-int
+struct vkapi_error *
 vkapi_send_message(struct vkapi_sess_obj *sess_obj,
                    struct vkapi_opts *opts)
 {
@@ -80,6 +80,7 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 
 	/* kajak-vkapi variables declaration */
 	char               *request_url;
+	struct vkapi_error *vk_error;
 
 	/* libCURL variables declaration */
 	CURL               *curl;
@@ -90,10 +91,17 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 	char               *msg_txt;
 
 
+	vk_error = vkapi_emalloc(sizeof(struct vkapi_error));
+	vk_error->err_num = 0;
+	vk_error->err_msg = NULL;
+
 	if (opts->method_type != MESSAGES_SEND){
-		fprintf(stderr, "kajak-vkapi error:\n");
-		fprintf(stderr, "incorrect method type\n");
-		exit(EXIT_FAILURE);
+		vk_error->err_num = -1;
+		vk_error->err_msg = vkapi_emalloc(strlen(
+		                                   "wrong opts->method_type"));
+		strcpy(vk_error->err_msg, "wrong opts->method_type");
+
+		return vk_error;
 	}
 
 	curl = curl_easy_init();
@@ -132,7 +140,10 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 			exit(EXIT_FAILURE);
 		}
 
-		vkapi_check_error(vk_response->mem);
+		vk_error = vkapi_check_error(vk_response->mem);
+		if (vk_error != 0) {
+			return vk_error;
+		}
 
 		for (i = 0; i < opts->num; ++i) {
 			if (strcmp(opts->lst[i]->opt_name, "message") == 0) {
@@ -153,5 +164,6 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 	free(vk_response);
 	curl_easy_cleanup(curl);
 
-	return 0;
+
+	return vk_error;
 }
