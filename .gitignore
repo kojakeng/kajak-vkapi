@@ -2,5 +2,6 @@
 *.core
 *.o
 
+test_check_error
 test_gen_request
 vkapi_config.h

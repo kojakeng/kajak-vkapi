@@ -37,7 +37,7 @@ vkapi_check_error(char *response)
 	/* iteration variables declaration */
 	int i;
 
-	/* normal variables declaration */
+	/* other variables declaration */
 	struct json_object *jsn_response;
 	struct json_object *jsn_err;
 	struct json_object *jsn_err_num;
@@ -52,14 +52,14 @@ vkapi_check_error(char *response)
 	err_obj = vkapi_emalloc(sizeof(struct vkapi_error));
 	err_obj->err_msg = NULL;
 
-	if (jsn_response != NULL) {
+	if (jsn_err != NULL) {
 		jsn_err_num = json_object_object_get(jsn_err, "error_code");
 		err_obj->err_num = json_object_get_int(jsn_err_num);
 
 		jsn_err_msg = json_object_object_get(jsn_err, "error_msg");
 		err_obj->err_msg = vkapi_emalloc(sizeof(char) *
 		                                 strlen(json_object_get_string(
-		                                                       jsn_err_msg)));
+		                                          jsn_err_msg)));
 		strcpy(err_obj->err_msg, json_object_get_string(jsn_err_msg));
 	} else {
 		err_obj->err_num = 0;
@@ -74,9 +74,6 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 {
 	/* iteration variables declaration */
 	int                 i;
-
-	/* bool variables declaration */
-	char                have_message_opt;
 
 	/* kajak-vkapi variables declaration */
 	char               *request_url;
@@ -106,21 +103,13 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 
 	curl = curl_easy_init();
 	if (curl) {		
-		have_message_opt = 0;
 		for (i = 0; i < opts->num; ++i) {
 			if (strcmp(opts->lst[i]->opt_name, "message") == 0) {
-				have_message_opt = 1;
 				msg_txt = opts->lst[i]->opt_value;
 				opts->lst[i]->opt_value = curl_easy_escape(curl,
 				                                           msg_txt, 0);
 				break;
 			}
-		}
-
-		if (!have_message_opt) {
-			fprintf(stderr, "error in vkapi_send_message:");
-			fprintf(stderr, "opts doesn't have \'message\' option.");
-			exit(EXIT_FAILURE);
 		}
 
 		request_url = vkapi_gen_request(sess_obj, opts);
