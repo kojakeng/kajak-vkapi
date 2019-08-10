@@ -1,3 +1,4 @@
 enum vkapi_method_types {
+	DOCS_GETMESSAGESUPLOADSERVER,
 	MESSAGES_SEND
 };

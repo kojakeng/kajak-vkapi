@@ -31,53 +31,57 @@ writedata_curl(void *contents, size_t size,
 	return realsize;
 }
 
-struct vkapi_error *
-vkapi_check_error(char *response)
+struct vkapi_response *
+vkapi_handle_response(char *response)
 {	
 	/* iteration variables declaration */
 	int i;
 
 	/* other variables declaration */
-	struct json_object *jsn_response;
-	struct json_object *jsn_err;
-	struct json_object *jsn_err_num;
-	struct json_object *jsn_err_msg;
-	struct vkapi_error *err_obj;
+	struct json_object    *jsn_response;
+	struct json_object    *jsn_err;
+	struct json_object    *jsn_err_num;
+	struct json_object    *jsn_err_msg;
+	struct json_object    *jsn_resp_obj;
+	struct vkapi_response *resp;
 
 
 	jsn_response = json_tokener_parse(response);
 
 	jsn_err = json_object_object_get(jsn_response, "error");
 	
-	err_obj = vkapi_emalloc(sizeof(struct vkapi_error));
-	err_obj->err_msg = NULL;
+	resp = vkapi_emalloc(sizeof(struct vkapi_response));
+	resp->err_msg = NULL;
+	resp->obj = NULL;
 
 	if (jsn_err != NULL) {
 		jsn_err_num = json_object_object_get(jsn_err, "error_code");
-		err_obj->err_num = json_object_get_int(jsn_err_num);
+		resp->err_num = json_object_get_int(jsn_err_num);
 
 		jsn_err_msg = json_object_object_get(jsn_err, "error_msg");
-		err_obj->err_msg = vkapi_emalloc(sizeof(char) *
+		resp->err_msg = vkapi_emalloc(sizeof(char) *
 		                                 strlen(json_object_get_string(
 		                                          jsn_err_msg)));
-		strcpy(err_obj->err_msg, json_object_get_string(jsn_err_msg));
+		strcpy(resp->err_msg, json_object_get_string(jsn_err_msg));
 	} else {
-		err_obj->err_num = 0;
+		resp->err_num = 0;
 	}
 
-	return err_obj;
+	jsn_resp_obj = json_object_object_get(jsn_response, "response");
+
+	return resp;
 }
 
-struct vkapi_error *
-vkapi_send_message(struct vkapi_sess_obj *sess_obj,
-                   struct vkapi_opts *opts)
+struct vkapi_response *
+vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
+                    struct vkapi_opts *opts)
 {
 	/* iteration variables declaration */
 	int                 i;
 
 	/* kajak-vkapi variables declaration */
-	char               *request_url;
-	struct vkapi_error *vk_error;
+	char                   *request_url;
+	struct vkapi_response  *resp;
 
 	/* libCURL variables declaration */
 	CURL               *curl;
@@ -88,17 +92,18 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 	char               *msg_txt;
 
 
-	vk_error = vkapi_emalloc(sizeof(struct vkapi_error));
-	vk_error->err_num = 0;
-	vk_error->err_msg = NULL;
+	resp = vkapi_emalloc(sizeof(struct vkapi_response));
+	resp->err_num = 0;
+	resp->err_msg = NULL;
+	resp->obj = NULL;
 
 	if (opts->method_type != MESSAGES_SEND){
-		vk_error->err_num = -1;
-		vk_error->err_msg = vkapi_emalloc(strlen(
-		                                   "wrong opts->method_type"));
-		strcpy(vk_error->err_msg, "wrong opts->method_type");
+		resp->err_num = -1;
+		resp->err_msg = vkapi_emalloc(strlen(
+		                                    "wrong opts->method_type"));
+		strcpy(resp->err_msg, "wrong opts->method_type");
 
-		return vk_error;
+		return resp;
 	}
 
 	curl = curl_easy_init();
@@ -129,9 +134,14 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 			exit(EXIT_FAILURE);
 		}
 
-		vk_error = vkapi_check_error(vk_response->mem);
-		if (vk_error != 0) {
-			return vk_error;
+		resp = vkapi_handle_response(vk_response->mem);
+		if (resp->err_num != 0) {
+			free(request_url);
+			free(vk_response->mem);
+			free(vk_response);
+			curl_easy_cleanup(curl);
+
+			return resp;
 		}
 
 		for (i = 0; i < opts->num; ++i) {
@@ -153,6 +163,60 @@ vkapi_send_message(struct vkapi_sess_obj *sess_obj,
 	free(vk_response);
 	curl_easy_cleanup(curl);
 
+	return resp;
+}
 
-	return vk_error;
+struct vkapi_response *
+vkapi_docs_getMessagesUploadServer(struct vkapi_sess_obj *sess_obj,
+                                   struct vkapi_opts *opts)
+{
+	/* kajak-vkapi variables declaration */
+	char   *request_url;
+	struct vkapi_response *resp;
+
+	/* libCURL variables declaration */
+	CURL               *curl;
+	CURLcode            res;
+	struct curl_memory *vk_response;
+
+	resp = vkapi_emalloc(sizeof(struct vkapi_response));
+	resp->err_num = 0;
+	resp->err_msg = NULL;
+	resp->obj = NULL;
+
+	request_url = vkapi_gen_request(sess_obj, opts);
+
+	curl = curl_easy_init();
+
+	if (curl) {		
+		vk_response = vkapi_emalloc(sizeof(struct curl_memory));
+		vk_response->mem = vkapi_emalloc(sizeof(char));
+		vk_response->size = 0;
+
+		curl_easy_setopt(curl, CURLOPT_URL, request_url);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writedata_curl);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) vk_response);
+
+		res = curl_easy_perform(curl);
+		if (res != CURLE_OK) {
+			fprintf(stderr, "curl_easy_perform() failed:\n");
+			fprintf(stderr, "%s\n", curl_easy_strerror(res));
+			exit(EXIT_FAILURE);
+		}
+
+		resp = vkapi_handle_response(vk_response->mem);
+		if (resp->err_num != 0) {
+			return resp;
+		}
+	} else {
+		fprintf(stderr, "CURL error.");
+		exit(EXIT_FAILURE);
+	}
+
+	free(request_url);
+	free(vk_response->mem);
+	free(vk_response);
+	curl_easy_cleanup(curl);
+
+	return resp;
 }

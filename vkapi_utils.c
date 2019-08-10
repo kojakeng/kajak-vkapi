@@ -99,6 +99,8 @@ vkapi_get_method_str(enum vkapi_method_types method_type)
 {
 	if (method_type == MESSAGES_SEND) {
 		return "messages.send";
+	} else if (method_type == DOCS_GETMESSAGESUPLOADSERVER) {
+		return "docs.getMessagesUploadServer";
 	} else {
 		return NULL;
 	}
