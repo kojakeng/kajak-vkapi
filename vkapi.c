@@ -63,6 +63,7 @@ vkapi_handle_response(char *response)
 		                                 strlen(json_object_get_string(
 		                                          jsn_err_msg)));
 		strcpy(resp->err_msg, json_object_get_string(jsn_err_msg));
+
 	} else {
 		resp->err_num = 0;
 	}
@@ -80,8 +81,9 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 	int                 i;
 
 	/* kajak-vkapi variables declaration */
-	char                   *request_url;
-	struct vkapi_response  *resp;
+	struct vkapi_request_parts     *request_parts;
+	char                           *request_url;
+	struct vkapi_response          *resp;
 
 	/* libCURL variables declaration */
 	CURL               *curl;
@@ -97,10 +99,13 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 	resp->err_msg = NULL;
 	resp->obj = NULL;
 
+	if (opts->request_type == DEFAULT) {
+		opts->request_type = POST_REQUEST;
+	}
+
 	if (opts->method_type != MESSAGES_SEND){
 		resp->err_num = -1;
-		resp->err_msg = vkapi_emalloc(strlen(
-		                                    "wrong opts->method_type"));
+		resp->err_msg = vkapi_emalloc(strlen("wrong opts->method_type"));
 		strcpy(resp->err_msg, "wrong opts->method_type");
 
 		return resp;
@@ -117,15 +122,25 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 			}
 		}
 
-		request_url = vkapi_gen_request(sess_obj, opts);
+		request_parts = vkapi_gen_request(sess_obj, opts);
 
 		vk_response = vkapi_emalloc(sizeof(struct curl_memory));
 		vk_response->mem = vkapi_emalloc(sizeof(char));
 		vk_response->size = 0;
 
-		curl_easy_setopt(curl, CURLOPT_URL, request_url);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writedata_curl);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) vk_response);
+		if (opts->request_type == GET_REQUEST) {
+			request_url = vkapi_emalloc(sizeof(char) * (
+			                            strlen(request_parts->method_url) +
+																	strlen(request_parts->opts_str)) + 1);
+
+			curl_easy_setopt(curl, CURLOPT_URL, request_url);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writedata_curl);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) vk_response);
+			free(request_url);
+		} else {
+			curl_easy_setopt(curl, CURLOPT_URL, request_parts->method_url);
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_parts->opts_str);
+		}
 
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK) {
@@ -136,7 +151,6 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 
 		resp = vkapi_handle_response(vk_response->mem);
 		if (resp->err_num != 0) {
-			free(request_url);
 			free(vk_response->mem);
 			free(vk_response);
 			curl_easy_cleanup(curl);
@@ -158,7 +172,7 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 		exit(EXIT_FAILURE);
 	}
 
-	free(request_url);
+	vkapi_free_request(request_parts);
 	free(vk_response->mem);
 	free(vk_response);
 	curl_easy_cleanup(curl);
@@ -171,7 +185,7 @@ vkapi_docs_getMessagesUploadServer(struct vkapi_sess_obj *sess_obj,
                                    struct vkapi_opts *opts)
 {
 	/* kajak-vkapi variables declaration */
-	char   *request_url;
+	struct vkapi_request_parts   *request_url;
 	struct vkapi_response *resp;
 
 	/* libCURL variables declaration */

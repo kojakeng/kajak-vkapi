@@ -21,7 +21,7 @@ vkapi_add_opt(struct vkapi_opts *opts,
 	opts->lst[opts->num - 1]->opt_name = vkapi_emalloc(sizeof(char) *
 	                                                   strlen(opt_name));
 	opts->lst[opts->num - 1]->opt_value = vkapi_emalloc(sizeof(char) *
-	                                                    strlen(opt_name));
+	                                                    strlen(opt_value));
 
 	strcpy(opts->lst[opts->num - 1]->opt_name, opt_name);
 	strcpy(opts->lst[opts->num - 1]->opt_value, opt_value);

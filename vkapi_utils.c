@@ -28,7 +28,7 @@ vkapi_create_mention(char *user_id, char *user_name)
 	return user_mention;
 }
 
-char *
+struct vkapi_request_parts *
 vkapi_gen_request(struct vkapi_sess_obj *sess_obj,
                   struct vkapi_opts     *opts)
 {
@@ -40,9 +40,13 @@ vkapi_gen_request(struct vkapi_sess_obj *sess_obj,
 	char *opt_value;
 
 	/* normal variables declaration */
-	char *request_url;
+	struct vkapi_request_parts *request_parts;
 	char *method_str;
 	char *token;
+
+	request_parts = vkapi_emalloc(sizeof(struct vkapi_request_parts *));
+	request_parts->method_url = NULL;
+	request_parts->opts_str = NULL;
 
 	method_str = vkapi_get_method_str(opts->method_type);
 	if (method_str == NULL) {
@@ -51,47 +55,73 @@ vkapi_gen_request(struct vkapi_sess_obj *sess_obj,
 		exit(EXIT_FAILURE);
 	}
 
-	/* VK_API_URL + method_str + '/' + '?' + '\0' */
-	request_url = vkapi_emalloc(sizeof(char) * 
-	                            (strlen(VK_API_URL) +
-															 strlen(method_str) + 4));
 
-	strcpy(request_url, VK_API_URL);
-	strcat(request_url, "/");
-	strcat(request_url, method_str);
+	/* VK_API_URL + method_str + '/' + '?' + '\0' */
+	request_parts->method_url = vkapi_emalloc(sizeof(char) * 
+	                                          (strlen(VK_API_URL) +
+	                                           strlen(method_str) + 4));
+	strcpy(request_parts->method_url, VK_API_URL);
+	strcat(request_parts->method_url, "/");
+	strcat(request_parts->method_url, method_str);
 
 	for (i = 0; i < opts->num; ++i) {
 		opt_name = opts->lst[i]->opt_name;
 		opt_value = opts->lst[i]->opt_value;
 
-		request_url = vkapi_erealloc(request_url, sizeof(char) *
-																							(strlen(request_url) +
-																							 strlen(opt_name) +
-																							 strlen(opt_value) + 3));
 		if (i == 0) {
-			strcat(request_url, "?");
+			request_parts->opts_str = vkapi_emalloc(sizeof(char) *
+																							(strlen(opt_name) +
+			                                         strlen(opt_value) + 3));
 		} else {
-			strcat(request_url, "&");
+			request_parts->opts_str = vkapi_erealloc(request_parts->opts_str,
+			                                         sizeof(char) * 
+			                                         (strlen(opt_name) +
+			                                          strlen(opt_value) + 3));
+
 		}
-		strcat(request_url, opt_name);
-		strcat(request_url, "=");
-		strcat(request_url, opt_value);
+
+		if (i == 0) {
+			if (opts->request_type == GET_REQUEST) {
+				strcpy(request_parts->opts_str, "?");
+				strcat(request_parts->opts_str, opt_name);
+				strcat(request_parts->opts_str, "=");
+				strcat(request_parts->opts_str, opt_value);
+			} else {
+				strcpy(request_parts->opts_str, opt_name);
+				strcat(request_parts->opts_str, "=");
+				strcat(request_parts->opts_str, opt_value);
+			}
+		} else {
+			strcat(request_parts->opts_str, "&");
+			strcat(request_parts->opts_str, opt_name);
+			strcat(request_parts->opts_str, "=");
+			strcat(request_parts->opts_str, opt_value);
+		}
 	}
 	
 	token = sess_obj->token;
-	request_url = vkapi_erealloc(request_url, sizeof(char) * (
-	                                          strlen(request_url) +
+	request_parts->opts_str = vkapi_erealloc(request_parts->opts_str, sizeof(char) * (
+	                                          strlen(request_parts->opts_str) +
 	                                          strlen("access_token=") +
-	                                          strlen(token) + 2));
+	                                          strlen(token) + 5));
 	if (i == 0) {
-		strcat(request_url, "?");
+		if (opts->request_type == GET_REQUEST) {
+			strcpy(request_parts->opts_str, "?");
+		}
 	} else {
-		strcat(request_url, "&");
+		strcat(request_parts->opts_str, "&");
 	}
-	strcat(request_url, "access_token=");
-	strcat(request_url, token);
+	strcat(request_parts->opts_str, "access_token=");
+	strcat(request_parts->opts_str, token);
 
-	return request_url;
+	return request_parts;
+}
+
+void vkapi_free_request(struct vkapi_request_parts *request_parts)
+{
+	free(request_parts->method_url);
+	free(request_parts->opts_str);
+	free(request_parts);
 }
 
 char  *

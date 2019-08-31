@@ -16,6 +16,7 @@ struct vkapi_opt {
  */
 struct vkapi_opts {
 	enum vkapi_method_types   method_type;
+	enum vkapi_request_types  request_type;
 	struct vkapi_opt        **lst;
 	int                       num;
 };
