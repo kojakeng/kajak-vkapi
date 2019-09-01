@@ -75,7 +75,8 @@ vkapi_gen_request(struct vkapi_sess_obj *sess_obj,
 		} else {
 			request_parts->opts_str = vkapi_erealloc(request_parts->opts_str,
 			                                         sizeof(char) * 
-			                                         (strlen(opt_name) +
+			                                         (strlen(request_parts->opts_str) +
+																								strlen(opt_name) +
 			                                          strlen(opt_value) + 3));
 
 		}
