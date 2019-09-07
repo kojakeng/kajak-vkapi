@@ -3,5 +3,6 @@
 *.o
 
 test_check_error
+test_add_del_resp_item
 test_gen_request
 vkapi_config.h
