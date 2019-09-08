@@ -57,8 +57,8 @@ vkapi_gen_resp_obj(void)
 	resp = vkapi_emalloc(sizeof(struct vkapi_response));
 	resp->err_num = 0;
 	resp->err_msg = NULL;
-	resp->obj = vkapi_emalloc(sizeof(struct vkapi_resp_items));
 
+	resp->obj = vkapi_emalloc(sizeof(struct vkapi_resp_items));
 	resp->obj->num = 0;
 	resp->obj->lst = NULL;
 
@@ -68,7 +68,7 @@ vkapi_gen_resp_obj(void)
 
 struct vkapi_response *
 vkapi_add_resp_item(struct vkapi_response *resp,
-                    char *name, char *value)
+                    const char *name, const char *value)
 {
 	int                     item_count;
 	struct vkapi_resp_item *resp_item;
@@ -76,10 +76,10 @@ vkapi_add_resp_item(struct vkapi_response *resp,
 	item_count = resp->obj->num;
 	
 	if (item_count == 0) {
-		resp->obj->lst = vkapi_emalloc(sizeof(struct vkapi_resp_item));
+		resp->obj->lst = vkapi_emalloc(sizeof(struct vkapi_resp_item *));
 	} else {
 		resp->obj->lst = vkapi_erealloc(resp->obj->lst,
-		                                sizeof(struct vkapi_resp_item) *
+		                                sizeof(struct vkapi_resp_item *) *
 		                                (item_count + 1));
 	}
 
@@ -173,7 +173,8 @@ vkapi_get_resp_item(struct vkapi_response *resp,
 }
 
 struct vkapi_response *
-vkapi_check_response(char *response)
+vkapi_check_response(struct vkapi_response *resp,
+                     char *response)
 {	
 	/* iteration variables declaration */
 	int i;
@@ -183,16 +184,11 @@ vkapi_check_response(char *response)
 	struct json_object    *jsn_err;
 	struct json_object    *jsn_err_num;
 	struct json_object    *jsn_err_msg;
-	struct vkapi_response *resp;
 
 	jsn_response = json_tokener_parse(response);
 
 	jsn_err = json_object_object_get(jsn_response, "error");
 	
-	resp = vkapi_emalloc(sizeof(struct vkapi_response));
-	resp->err_msg = NULL;
-	resp->obj = NULL;
-
 	if (jsn_err != NULL) {
 		jsn_err_num = json_object_object_get(jsn_err, "error_code");
 		resp->err_num = json_object_get_int(jsn_err_num);
@@ -232,10 +228,7 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 	char               *msg_txt;
 
 
-	resp = vkapi_emalloc(sizeof(struct vkapi_response));
-	resp->err_num = 0;
-	resp->err_msg = NULL;
-	resp->obj = NULL;
+	resp = vkapi_gen_resp_obj();
 
 	if (opts->request_type == DEFAULT) {
 		opts->request_type = POST_REQUEST;
@@ -287,7 +280,7 @@ vkapi_messages_send(struct vkapi_sess_obj *sess_obj,
 			exit(EXIT_FAILURE);
 		}
 
-		resp = vkapi_check_response(vk_response->mem);
+		vkapi_check_response(resp, vk_response->mem);
 		if (resp->err_num != 0) {
 			free(vk_response->mem);
 			free(vk_response);
@@ -336,15 +329,13 @@ vkapi_docs_getMessagesUploadServer(struct vkapi_sess_obj *sess_obj,
 	/* json variables */
 	struct json_object    *jsn_response;
 	struct json_object    *jsn_resp_obj;
+	struct json_object    *jsn_upload_url;
 
 	if (opts->request_type == DEFAULT) {
 		opts->request_type = GET_REQUEST;
 	}
 
-	resp = vkapi_emalloc(sizeof(struct vkapi_response));
-	resp->err_num = 0;
-	resp->err_msg = NULL;
-	resp->obj = NULL;
+	resp = vkapi_gen_resp_obj();
 
 	request_parts = vkapi_gen_request(sess_obj, opts);
 
@@ -377,7 +368,7 @@ vkapi_docs_getMessagesUploadServer(struct vkapi_sess_obj *sess_obj,
 			resp->err_num = 200;
 		}
 
-		resp = vkapi_check_response(vk_response->mem);
+		vkapi_check_response(resp, vk_response->mem);
 		if (resp->err_num != 0) {
 			return resp;
 		}
@@ -385,14 +376,16 @@ vkapi_docs_getMessagesUploadServer(struct vkapi_sess_obj *sess_obj,
 		jsn_response = json_tokener_parse(vk_response->mem);
 
 		jsn_resp_obj = json_object_object_get(jsn_response, "response");
+		jsn_upload_url = json_object_object_get(jsn_resp_obj, "upload_url");
 
-		if (jsn_resp_obj == NULL) {
+		if (jsn_upload_url == NULL) {
 			resp->err_num = 1;
 
 			return resp;
-		} else {
-			
 		}
+
+		vkapi_add_resp_item(resp, "upload_url",
+		                    json_object_get_string(jsn_upload_url));
 
 	} else {
 		fprintf(stderr, "CURL error.");

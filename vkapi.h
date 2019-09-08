@@ -28,7 +28,7 @@ void                    vkapi_free_resp_obj(struct vkapi_response *);
 struct vkapi_response  *vkapi_gen_resp_obj(void);
 
 struct vkapi_response  *vkapi_add_resp_item(struct vkapi_response *,
-                                            char *, char *);
+                                            const char *, const char *);
 
 struct vkapi_response  *vkapi_del_resp_item(struct vkapi_response *,
                                             char *);
@@ -43,4 +43,5 @@ struct vkapi_response  *vkapi_messages_send(struct vkapi_sess_obj *,
 struct vkapi_response  *vkapi_docs_getMessagesUploadServer(struct vkapi_sess_obj *,
                                                            struct vkapi_opts *);
 /* other helper functions */
-struct vkapi_response  *vkapi_check_response(char *response);
+struct vkapi_response  *vkapi_check_response(struct vkapi_response *,
+                                             char *response);
